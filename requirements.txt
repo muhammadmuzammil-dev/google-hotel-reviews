@@ -5,3 +5,7 @@ boto3
 pytest
 httpx
 python-dotenv
+pytest
+pytest-asyncio
+pytest.cov
+mangum

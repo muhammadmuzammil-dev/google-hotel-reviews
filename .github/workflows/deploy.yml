@@ -46,17 +46,59 @@ jobs:
           cd package
           zip -r ../lambda.zip .
           cd ..
+      
+      # Step 1: Update code
       - name: Deploy to Lambda
         run: aws lambda update-function-code --function-name fondoke-hotel-reviews --zip-file fileb://lambda.zip --region eu-west-1
       
-      - name: Wait for function update to complete
-        run: aws lambda wait function-updated --function-name fondoke-hotel-reviews --region eu-west-1
+      # Step 2: Wait for code update to complete
+      - name: Wait for code update
+        run: |
+          echo "Waiting for code update to complete..."
+          while true; do
+            STATE=$(aws lambda get-function --function-name fondoke-hotel-reviews --region eu-west-1 --query 'Configuration.State' --output text)
+            LAST_UPDATE=$(aws lambda get-function --function-name fondoke-hotel-reviews --region eu-west-1 --query 'Configuration.LastUpdateStatus' --output text)
+            echo "Function state: $STATE, Last update: $LAST_UPDATE"
+            
+            if [ "$STATE" == "Active" ] && [ "$LAST_UPDATE" == "Successful" ]; then
+              echo "Code update completed successfully"
+              break
+            elif [ "$LAST_UPDATE" == "Failed" ]; then
+              echo "Code update failed"
+              exit 1
+            fi
+            
+            sleep 5
+          done
       
+      # Step 3: Update handler
       - name: Update Lambda handler
-        run: aws lambda update-function-configuration --function-name fondoke-hotel-reviews --region eu-west-1 --handler "lambda_function.handler"
+        run: aws lambda update-function-configuration --function-name fondoke-hotel-reviews --region eu-west-1 --handler "lambda_function.lambda_handler"
       
+      # Step 4: Wait for handler update
+      - name: Wait for handler update
+        run: |
+          echo "Waiting for handler update to complete..."
+          while true; do
+            STATE=$(aws lambda get-function --function-name fondoke-hotel-reviews --region eu-west-1 --query 'Configuration.State' --output text)
+            LAST_UPDATE=$(aws lambda get-function --function-name fondoke-hotel-reviews --region eu-west-1 --query 'Configuration.LastUpdateStatus' --output text)
+            echo "Function state: $STATE, Last update: $LAST_UPDATE"
+            
+            if [ "$STATE" == "Active" ] && [ "$LAST_UPDATE" == "Successful" ]; then
+              echo "Handler update completed successfully"
+              break
+            elif [ "$LAST_UPDATE" == "Failed" ]; then
+              echo "Handler update failed"
+              exit 1
+            fi
+            
+            sleep 5
+          done
+      
+      # Step 5: Update environment variables
       - name: Update environment variables
         run: aws lambda update-function-configuration --function-name fondoke-hotel-reviews --region eu-west-1 --environment "Variables={GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }},DYNAMODB_TABLE_NAME=fondoke_reviews_external,DYNAMODB_REGION=eu-west-1,CACHE_TTL_DAYS=3,MAX_REVIEWS=10}"
       
+      # Step 6: Verify deployment
       - name: Verify deployment
         run: aws lambda get-function --function-name fondoke-hotel-reviews --region eu-west-1 --query 'Configuration.LastModified'

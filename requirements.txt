@@ -1,3 +1,7 @@
+fastapi
+mangum
+uvicorn
 boto3
 pytest
+httpx
 python-dotenv

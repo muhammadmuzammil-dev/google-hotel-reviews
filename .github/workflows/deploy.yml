@@ -1,9 +1,11 @@
 name: Deploy to AWS Lambda
+
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+
 jobs:
   test:
     name: Run Tests
@@ -11,16 +13,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      
       - name: Install dependencies
         run: pip install -r requirements.txt
+      
       - name: Run tests
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: python -m pytest tests/ -v
+
   deploy:
     name: Deploy Lambda
     runs-on: ubuntu-latest
@@ -28,35 +34,69 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
+      
       - name: Install dependencies into package folder
-        run: pip install -r requirements.txt --target ./package
+        run: |
+          pip install -r requirements.txt --target ./package
+          # Remove unnecessary files to reduce package size
+          find ./package -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+          find ./package -type f -name "*.pyc" -delete
+      
       - name: Package Lambda with dependencies
         run: |
           cp src/lambda_function.py ./package/
           cd package
           zip -r ../lambda.zip .
           cd ..
+      
       - name: Deploy to Lambda
-        run: aws lambda update-function-code --function-name fondoke-hotel-reviews --zip-file fileb://lambda.zip --region eu-west-1
+        run: |
+          aws lambda update-function-code \
+            --function-name fondoke-hotel-reviews \
+            --zip-file fileb://lambda.zip \
+            --region eu-west-1
       
-      - name: Wait for function update to complete
-        run: aws lambda wait function-updated --function-name fondoke-hotel-reviews --region eu-west-1
-      
-      - name: Update Lambda handler
-        run: aws lambda update-function-configuration --function-name fondoke-hotel-reviews --region eu-west-1 --handler "lambda_function.handler"
+      - name: Wait for code update
+        run: |
+          echo "Waiting for code update to complete..."
+          while true; do
+            STATE=$(aws lambda get-function --function-name fondoke-hotel-reviews --region eu-west-1 --query 'Configuration.State' --output text)
+            LAST_UPDATE=$(aws lambda get-function --function-name fondoke-hotel-reviews --region eu-west-1 --query 'Configuration.LastUpdateStatus' --output text)
+            echo "Function state: $STATE, Last update: $LAST_UPDATE"
+            
+            if [ "$STATE" == "Active" ] && [ "$LAST_UPDATE" == "Successful" ]; then
+              echo "Code update completed successfully"
+              break
+            elif [ "$LAST_UPDATE" == "Failed" ]; then
+              echo "Code update failed"
+              exit 1
+            fi
+            
+            sleep 5
+          done
       
       - name: Update environment variables
-        run: aws lambda update-function-configuration --function-name fondoke-hotel-reviews --region eu-west-1 --environment "Variables={GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }},DYNAMODB_TABLE_NAME=fondoke_reviews_external,DYNAMODB_REGION=eu-west-1,CACHE_TTL_DAYS=3,MAX_REVIEWS=10}"
+        run: |
+          aws lambda update-function-configuration \
+            --function-name fondoke-hotel-reviews \
+            --region eu-west-1 \
+            --environment "Variables={GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }},DYNAMODB_TABLE_NAME=fondoke_reviews_external,DYNAMODB_REGION=eu-west-1,CACHE_TTL_DAYS=3,MAX_REVIEWS=10}"
       
       - name: Verify deployment
-        run: aws lambda get-function --function-name fondoke-hotel-reviews --region eu-west-1 --query 'Configuration.LastModified'
+        run: |
+          aws lambda get-function \
+            --function-name fondoke-hotel-reviews \
+            --region eu-west-1 \
+            --query 'Configuration.LastModified'

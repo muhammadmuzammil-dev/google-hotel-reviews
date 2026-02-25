@@ -50,23 +50,10 @@ jobs:
         run: aws lambda update-function-code --function-name fondoke-hotel-reviews --zip-file fileb://lambda.zip --region eu-west-1
       
       - name: Wait for function update to complete
-        run: |
-          echo "Waiting for function update to complete..."
-          while true; do
-            STATE=$(aws lambda get-function --function-name fondoke-hotel-reviews --region eu-west-1 --query 'Configuration.State' --output text)
-            LAST_UPDATE=$(aws lambda get-function --function-name fondoke-hotel-reviews --region eu-west-1 --query 'Configuration.LastUpdateStatus' --output text)
-            echo "Function state: $STATE, Last update: $LAST_UPDATE"
-            
-            if [ "$STATE" == "Active" ] && [ "$LAST_UPDATE" == "Successful" ]; then
-              echo "Function update completed successfully"
-              break
-            elif [ "$LAST_UPDATE" == "Failed" ]; then
-              echo "Function update failed"
-              exit 1
-            fi
-            
-            sleep 5
-          done
+        run: aws lambda wait function-updated --function-name fondoke-hotel-reviews --region eu-west-1
+      
+      - name: Update Lambda handler
+        run: aws lambda update-function-configuration --function-name fondoke-hotel-reviews --region eu-west-1 --handler "lambda_function.handler"
       
       - name: Update environment variables
         run: aws lambda update-function-configuration --function-name fondoke-hotel-reviews --region eu-west-1 --environment "Variables={GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }},DYNAMODB_TABLE_NAME=fondoke_reviews_external,DYNAMODB_REGION=eu-west-1,CACHE_TTL_DAYS=3,MAX_REVIEWS=10}"

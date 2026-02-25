@@ -401,7 +401,7 @@ def _http_request(url: str, headers: dict, data: bytes | None, method: str) -> d
         # Google returned something that isn't valid JSON
         raise Exception(f"Invalid JSON from Google: {e}")
 # ── Mangum Handler (THIS is what AWS Lambda actually calls) ───────────────────
-handler = Mangum(app, lifespan="off")
+lambda_handler = Mangum(app, lifespan="off")
 # Mangum wraps our FastAPI app so AWS Lambda can trigger it.
 # When Lambda receives an event, it calls handler(event, context)
 # Mangum converts the Lambda event to an HTTP request FastAPI understands

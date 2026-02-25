@@ -348,6 +348,8 @@ def _google_post(endpoint: str, payload: dict, field_mask: str) -> dict:
         "X-Goog-FieldMask": field_mask         # only return requested fields
     }
     return _http_request(url, headers, data, "POST")
+
+
 def _google_get(endpoint: str, field_mask: str) -> dict:
     """
     Make a GET request to Google Places API.
@@ -361,6 +363,8 @@ def _google_get(endpoint: str, field_mask: str) -> dict:
         "X-Goog-FieldMask": field_mask
     }
     return _http_request(url, headers, None, "GET")
+
+
 def _http_request(url: str, headers: dict, data: bytes | None, method: str) -> dict:
     """
     Make an HTTP request and return the JSON response.
@@ -395,9 +399,54 @@ def _http_request(url: str, headers: dict, data: bytes | None, method: str) -> d
         # Google returned something that isn't valid JSON
         raise Exception(f"Invalid JSON from Google: {e}")
 # ── Mangum Handler (THIS is what AWS Lambda actually calls) ───────────────────
-handler = Mangum(app, lifespan="off")
+mangum_handler  = Mangum(app, lifespan="off")
 # Mangum wraps our FastAPI app so AWS Lambda can trigger it.
 # When Lambda receives an event, it calls handler(event, context)
 # Mangum converts the Lambda event to an HTTP request FastAPI understands
 # Then converts FastAPI's HTTP response back to Lambda's expected format
 # lifespan="off" disables startup/shutdown events (not needed in Lambda)
+
+
+def lambda_handler(event, context):
+    """
+    Wrapper to handle both API Gateway events and direct invocations
+    """
+    logger.debug(f"Received event: {json.dumps(event)}")
+    logger.debug(f"Context: {context}")
+    
+    # Check if this looks like an API Gateway event
+    if event.get("httpMethod") and event.get("path"):
+        # This is an API Gateway event - use Mangum
+        logger.info("Processing as API Gateway event")
+        return mangum_handler(event, context)
+    else:
+        # This is a direct invocation - return a helpful message
+        logger.info("Processing as direct invocation")
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({
+                "message": "This Lambda expects to be triggered via API Gateway with HTTP requests",
+                "usage": {
+                    "health_check": {
+                        "method": "GET",
+                        "path": "/",
+                        "example": "curl -X GET https://your-api-gateway-url/"
+                    },
+                    "get_reviews": {
+                        "method": "POST", 
+                        "path": "/reviews",
+                        "body": {
+                            "hotel_uuid": "test-hotel-001",
+                            "hotel_name": "The Shelbourne Hotel",
+                            "city": "Dublin",
+                            "country": "Ireland"
+                        },
+                        "example": "curl -X POST https://your-api-gateway-url/reviews -H 'Content-Type: application/json' -d '{\"hotel_uuid\":\"test-hotel-001\",\"hotel_name\":\"The Shelbourne Hotel\",\"city\":\"Dublin\",\"country\":\"Ireland\"}'"
+                    }
+                },
+                "received_event": event
+            })
+        }

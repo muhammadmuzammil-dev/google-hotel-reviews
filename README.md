@@ -1,4 +1,4 @@
-# fondoke-hotel-reviews
+# google-hotel-reviews
 
 A Lambda function that fetches hotel reviews from Google Places API and caches them in DynamoDB. Built with FastAPI + Mangum so it runs both locally and on AWS Lambda without any changes.
 
@@ -25,7 +25,7 @@ You POST a hotel's details (name, city, country, uuid) and get back the Google r
 | Variable | Default | What it does |
 |---|---|---|
 | `GOOGLE_API_KEY` | *(empty)* | Your Google Places API key |
-| `DYNAMODB_TABLE_NAME` | `fondoke_reviews_external` | DynamoDB table to read/write |
+| `DYNAMODB_TABLE_NAME` | `google_reviews_external` | DynamoDB table to read/write |
 | `DYNAMODB_REGION` | `eu-west-1` | AWS region for DynamoDB |
 | `CACHE_TTL_DAYS` | `3` | How many days before a cache record is considered stale |
 | `MAX_REVIEWS` | `10` | Max number of reviews to keep per hotel |
@@ -36,7 +36,7 @@ You POST a hotel's details (name, city, country, uuid) and get back the Google r
 ## Endpoints
 
 ### `GET /`
-Health check. Returns `{"status": "healthy", "service": "fondoke-hotel-reviews"}`.
+Health check. Returns `{"status": "healthy", "service": "google-hotel-reviews"}`.
 
 ### `POST /reviews`
 

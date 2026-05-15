@@ -1,5 +1,5 @@
 """
-Tests for fondoke-hotel-reviews FastAPI Lambda
+Tests for google-hotel-reviews FastAPI Lambda
 We use FastAPI's TestClient which simulates real HTTP requests
 without actually starting a server. Much faster than real HTTP calls.
 TestClient uses httpx under the hood (that's why we install httpx).
@@ -10,7 +10,7 @@ import time
 import pytest
 from unittest.mock import patch, MagicMock
 os.environ["GOOGLE_API_KEY"]      = "test-key-123"
-os.environ["DYNAMODB_TABLE_NAME"] = "fondoke_reviews_external"
+os.environ["DYNAMODB_TABLE_NAME"] = "google_reviews_external"
 os.environ["DYNAMODB_REGION"]     = "eu-west-1"
 os.environ["CACHE_TTL_DAYS"]      = "3"
 os.environ["MAX_REVIEWS"]         = "10"
@@ -27,6 +27,7 @@ VALID_PAYLOAD = {
     "city":        "Dublin",
     "country":     "Ireland"
 }
+
 FRESH_CACHE = {
     "hotel_uuid":  "test-uuid-001",
     "total_count": 3840,
@@ -71,7 +72,7 @@ def test_health_check():
     response = client.get("/")
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
-    assert response.json()["service"] == "fondoke-hotel-reviews"
+    assert response.json()["service"] == "google-hotel-reviews"
 
 
 @patch("lambda_function.table")

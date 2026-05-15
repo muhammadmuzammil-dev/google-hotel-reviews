@@ -1,5 +1,5 @@
 """
-fondoke-hotel-reviews Lambda Function
+google-hotel-reviews Lambda Function
 Built with FastAPI + Mangum for AWS Lambda
 How it works:
 - FastAPI handles routing and validation
@@ -25,7 +25,7 @@ logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
 
 GOOGLE_API_KEY      = os.environ.get("GOOGLE_API_KEY", "")
-DYNAMODB_TABLE_NAME = os.environ.get("DYNAMODB_TABLE_NAME", "fondoke_reviews_external")
+DYNAMODB_TABLE_NAME = os.environ.get("DYNAMODB_TABLE_NAME", "google_reviews_external")
 DYNAMODB_REGION     = os.environ.get("DYNAMODB_REGION", "eu-west-1")
 CACHE_TTL_DAYS      = int(os.environ.get("CACHE_TTL_DAYS", "3"))
 MAX_REVIEWS         = int(os.environ.get("MAX_REVIEWS", "10"))
@@ -39,7 +39,7 @@ table    = dynamodb.Table(DYNAMODB_TABLE_NAME)
 
 # ── FastAPI App ───────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Fondoke Hotel Reviews API",
+    title="Google Hotel Reviews API",
     description="Fetches hotel reviews from Google Places API with DynamoDB caching",
     version="1.0.0"
 )
@@ -84,9 +84,9 @@ def health_check():
     """
     Health check endpoint.
     Call GET / to verify the API is alive.
-    Returns: {"status": "healthy", "service": "fondoke-hotel-reviews"}
+    Returns: {"status": "healthy", "service": "google-hotel-reviews"}
     """
-    return {"status": "healthy", "service": "fondoke-hotel-reviews"}
+    return {"status": "healthy", "service": "google-hotel-reviews"}
 
 
 @app.post("/reviews", response_model=HotelReviewResponse)
@@ -164,7 +164,7 @@ def _get_cached(hotel_uuid: str) -> dict | None:
     """
     Get item from DynamoDB if it exists and is not stale.
     Args:
-        hotel_uuid: The Fondoke hotel ID (DynamoDB partition key)
+        hotel_uuid: The Google hotel ID (DynamoDB partition key)
     Returns:
         dict with cached data if fresh, None if not found or stale
     """
@@ -193,7 +193,7 @@ def _save_to_dynamo(hotel_uuid: str, data: dict) -> None:
     """
     Insert or replace hotel review record in DynamoDB.
     Args:
-        hotel_uuid: The Fondoke hotel ID
+        hotel_uuid: The Google hotel ID
         data: Dict with total_count, rating, reviews, fetched_at
     """
     item = {
@@ -271,6 +271,7 @@ def _search_place(
     place_id = places[0].get("id")
     logger.info("Found place_id=%s for %s", place_id, hotel_name)
     return place_id
+
 def _get_place_details(place_id: str) -> dict:
     """
     Call Google Place Details API to get full hotel information.
@@ -284,6 +285,7 @@ def _get_place_details(place_id: str) -> dict:
         endpoint   = f"places/{place_id}",
         field_mask = "id,rating,userRatingCount,reviews"
     )
+
 def _normalize(details: dict) -> dict:
     """
     Convert Google Places API response format to our own format.
